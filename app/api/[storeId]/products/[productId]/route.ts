@@ -20,11 +20,12 @@ export async function GET (
             include: {
                 images: true,
                 category: true,
+                tieredPrices: true,
                 size: true,
                 color: true
             }
         })
-
+        console.log(NextResponse.json(product));
         return NextResponse.json(product);
     } catch (err) {
         console.log('[PRODUCT_GET]', err)
@@ -44,6 +45,7 @@ export async function PATCH (
         const {
             name,
             price,
+            tieredPrices,
             categoryId,
             colorId,
             sizeId,
@@ -103,6 +105,9 @@ export async function PATCH (
                 price,
                 isFeatured,
                 isArchived,
+                tieredPrices: {
+                    deleteMany: {}
+                },
                 categoryId,
                 sizeId,
                 colorId,
@@ -121,7 +126,13 @@ export async function PATCH (
                             ...images.map((image: { url: string }) => image)
                         ]
                     }
-                }
+                },
+                tieredPrices: {
+                    create: tieredPrices.map((tieredPrice) => ({
+                        minQty: tieredPrice.minQty,
+                        price: tieredPrice.price, // Correct way to convert price to Decimal
+                    }))
+                },
             }
         })
 

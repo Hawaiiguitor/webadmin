@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import * as z from 'zod'
-import { Category, Color, Image, Product, Size } from "@prisma/client";
+import { Category, Color, Size, TieredPrice } from "@prisma/client";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -19,36 +18,26 @@ import ImageUpload from '@/components/ui/image-upload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import Textarea from '@/components/ui/textarea';
+import TieredPricesInput from './tieredPrices';
+import { convertTieredPricesToNumber, ProductFormValues, formSchema  } from '@/lib/utils'; // Import Decimal type from Prisma
+
 
 interface ProductFromProps {
-    initialData: Product & {
-        images: Image[]
-    } | null;
+    fetchData: ProductFormValues
     categories: Category[]
     colors: Color[]
     sizes: Size[]
+    notInit: boolean
 }
 
-const formSchema = z.object({
-    name: z.string().min(1),
-    images: z.object({ url: z.string() }).array(),
-    price: z.coerce.number().min(1),
-    categoryId: z.string().min(1),
-    colorId: z.string().min(1),
-    sizeId: z.string().min(1),
-    isFeatured: z.boolean().default(false).optional(),
-    isArchived: z.boolean().default(false).optional(),
-    description: z.string().min(0)
-    
-})
 
-type ProductFormValues = z.infer<typeof formSchema>;
 
 export const ProductForm: React.FC<ProductFromProps> = ({
-    initialData,
+    fetchData,
     categories,
     colors,
-    sizes
+    sizes,
+    notInit
 }) => {
 
     const params = useParams();
@@ -57,20 +46,22 @@ export const ProductForm: React.FC<ProductFromProps> = ({
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    const title = initialData ? 'Edit product' : 'Create product'
-    const description = initialData ? 'Edit a product' : 'Add a new product'
-    const toastMessage = initialData ? 'Product updated.' : 'Product created.'
-    const action = initialData ? 'Save changes' : 'Create'
+    const title = notInit ? 'Edit product' : 'Create product'
+    const description = notInit ? 'Edit a product' : 'Add a new product'
+    const toastMessage = notInit ? 'Product updated.' : 'Product created.'
+    const action = notInit ? 'Save changes' : 'Create'
 
     const form = useForm<ProductFormValues>({
         resolver: zodResolver(formSchema),
-        defaultValues: initialData ? {
-            ...initialData,
-            price: parseFloat(String(initialData?.price)),
-            images: initialData.images || []
+        defaultValues: notInit ? {
+            ...fetchData,
+            price: parseFloat(String(fetchData?.price)),
+            images: fetchData.images || [],
+            tieredPrices: fetchData.tieredPrices || [],
         } : {
             name: '',
             images: [],
+            tieredPrices: [],
             price: 0,
             categoryId: '',
             colorId: '',
@@ -83,8 +74,17 @@ export const ProductForm: React.FC<ProductFromProps> = ({
 
     const onSubmit = async (data: ProductFormValues) => {
         try {
+            // // Convert Decimal to number
+            // const safeProduct = {
+            //     ...data,
+            //     tieredPrices: data?.tieredPrices.map(tier => ({
+            //     ...tier,
+            //     price: tier.price.toNumber(),
+            //     })),
+            // };
             setLoading(true);
-            if (initialData) {
+            if (notInit) {
+                console.log("###### asdfasdfasfadf")
                 await axios.patch(`/api/${params.storeId}/products/${params.productId}`, data)
             } else {
                 await axios.post(`/api/${params.storeId}/products`, data)
@@ -124,7 +124,7 @@ export const ProductForm: React.FC<ProductFromProps> = ({
             />
             <div className="flex items-center justify-between">
                 <Heading title={title} description={description} />
-                {initialData && (
+                {notInit && (
                     <Button variant="destructive" size="sm" onClick={() => setOpen(true)} disabled={loading}>
                         <Trash className="w-4 h-4" />
                     </Button>
@@ -156,7 +156,7 @@ export const ProductForm: React.FC<ProductFromProps> = ({
                                         onChange={(url) => {
                                             const currentImages = form.getValues("images");
                                             const newValue = [...currentImages, { url }];
-                                            console.log("New images array:", newValue);
+                                            // console.log("New images array:", newValue);
                                             field.onChange(newValue);
                                         }}
                                         onMarkFirst={(urls) => {
@@ -359,6 +359,19 @@ export const ProductForm: React.FC<ProductFromProps> = ({
                             />
                         </div>
                     </div>
+                    <FormField
+                            control={form.control} 
+                            name="tieredPrices"
+                            render={({field}) => (
+                                <FormItem>
+                                    <FormLabel>Add prices</FormLabel>
+                                    <FormControl>
+                                    <TieredPricesInput value={field.value || []} onChange={field.onChange} disabled={loading}/>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     <Button disabled={loading} className='ml-auto' type='submit'>{action}</Button>
                 </form>
             </Form>
