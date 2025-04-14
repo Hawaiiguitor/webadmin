@@ -9,7 +9,7 @@ export async function POST(
     try {
         const { userId } = await auth();
         const body = await req.json();
-
+        console.log("##### body: ", body)
         const {
             name,
             price,
@@ -19,7 +19,8 @@ export async function POST(
             images,
             isFeatured,
             isArchived,
-            description
+            description,
+            tieredPrices,
         } = body; 
         
         const { storeId } = await params; 
@@ -73,7 +74,13 @@ export async function POST(
                         ]
                     }
                 },
-                price,
+                price, // Make sure price is converted to Decimal
+                tieredPrices: {
+                    create: tieredPrices.map((tier) => ({
+                        minQty: tier.minQty,
+                        price: tier.price, // Correct way to convert price to Decimal
+                    }))
+                },
                 isFeatured,
                 isArchived,
                 categoryId,
